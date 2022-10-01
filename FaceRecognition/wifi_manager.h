@@ -25,23 +25,36 @@
 #include "Arduino.h"
 #include <WiFi.h>
 #include <WiFiAP.h>
+#include <string>
 
 class WifiManager
 {
 public:
   WifiManager();
-  void setDestinationConnectionParameters(const char* ssid, const char* password);
   bool connectToDestination();
-  bool enableSetupServer();
-  bool disableSetupServer();
+  void runSetupServer();
 
 private:
-  static const char* setupSsid = "ESP Face recognizer";
-  static const char* setupPassword = "admin";
-  const uint8_t port = 80;
-  WiFiServer server(port);
-
-  static char* destinationSsid = "";
-  static char* destinationPassword = "";
-  WiFiClient client;
+  void setDestinationConnectionParameters(const std::string ssid, const std::string password);
+  void enableSetupServer();
+  bool disableSetupServer();
+  void waitForClient();
+  bool isClientAvailable();
+  char readClientData();
+  void sendDataToClient(const char* msg);
+  
+  const std::string SetupSsid = "ESP Face recognizer";
+  const std::string SetupPassword = "admin";
+  static constexpr uint8_t Port = 80;
+  static constexpr uint8_t MaxSsidLength = 32;
+  static constexpr uint8_t MaxPasswordLength = 64;
+  const IPAddress Ip {192, 168, 20, 13};
+  const IPAddress Gateway {192, 168, 0, 1};
+  const IPAddress Mask {255, 255, 255, 0};
+  
+  WiFiServer m_server;
+  std::string m_destinationSsid;
+  std::string m_destinationPassword;
+  WiFiClient m_client;
+  bool m_isSetupServerEnabled;
 };

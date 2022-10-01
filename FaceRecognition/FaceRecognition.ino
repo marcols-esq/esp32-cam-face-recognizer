@@ -28,46 +28,63 @@
 #include "img_converters.h"
 
 #include "face_recognizer.h"
+#include "wifi_manager.h"
+
+enum class Mode { setup, runtime };
 
 bool enroll = false;
+Mode mode;
 
 void setup() {
-   Serial.begin(115200);
+constexpr uint32_t BaudRate = 115200;
+Serial.begin(BaudRate);
 
-   FaceRecognizer recognizer;
-   pinMode(12, INPUT_PULLUP);
+FaceRecognizer recognizer;
+pinMode(12, INPUT_PULLUP);
 
-   while(1) {
-    bool detected = recognizer.detect();
-    if(detected) {
-      Serial.println("Face detected.");
-    }
+WifiManager wifiManager;
+if (wifiManager.connectToDestination()) {
+  mode = Mode::runtime;
+} else {
+  mode = Mode::setup;
+}
 
-    if(detected) {
-      int id=0;
-      switch(enroll) {
-      case true:
-        id = recognizer.enrollFace();
-        break;
-      case false:
-        id = recognizer.recognize();
-
-        if (id >= 0 && id < 127) {
-          Serial.printf("Face ID: %d\n\n", id);
-          enroll = false;
-        } else if (id == 127) {
-          Serial.println("Error occured when recognizing face.\n");
-        } else {
-          Serial.println("Face not recognized.\n");
+bool detected;
+int id = 0;
+  while (1) {
+    switch (mode){
+    case Mode::runtime:
+      detected = recognizer.detect(); 
+      if (detected) {
+        Serial.println("Face detected.");
+        switch (enroll) {
+        case true:
+          id = recognizer.enrollFace();
+          break;
+        case false:
+          id = recognizer.recognize();
+    
+          if (id >= 0 && id < 127) {
+            Serial.printf("Face ID: %d\n\n", id);
+            enroll = false;
+          } else if (id == 127) {
+            Serial.println("Error occured when recognizing face.\n");
+          } else {
+            Serial.println("Face not recognized.\n");
+          }
+    
+          break;
         }
-
-        break;
       }
-    }
-
-    if(digitalRead(12) == LOW){
-      enroll = true;
-    }
+    
+      if (digitalRead(12) == LOW){
+        enroll = true;
+      }
+      break;
+    case Mode::setup:
+      wifiManager.runSetupServer();
+      break;
+    }       
   }
 }
 
