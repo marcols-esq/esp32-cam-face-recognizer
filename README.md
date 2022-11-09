@@ -18,7 +18,7 @@ Prerequisites:
    Other options I use:
    - `Upload speed: 921600`
    - `Flash frequency: 80MHz`
-   - `Flash mode: QIO`
+   - `Flash mode: QIO`  
    Don't forget to assign proper COM port
 
 
@@ -41,5 +41,5 @@ After connecting to MQTT server, device will subscribe to two topics: `recogniti
 NOTE: Those are default topic names, they can be changed in `config.h`
 
 In `recognition_control` the facial detection and recognition process can be controlled. User can start/stop the process by posting `run`/`stop` in the topic.
-When the process is running, the device posts the results in `recognition_result` topic. To start enrolling detected face, `enroll` message has to be sent. To delete recognized face, a `delete` message should be posted.
+When the process is running, the device posts the results in `recognition_result` topic. To start enrolling detected face, `enroll` message has to be sent. To delete recognized face, a `delete` message should be posted.  
 However, face deletion has a limitation (caused by implementation of Espressif face recognition library), that user should delete faces in reverse order of enrolling (delete newest enrolled face first). In other case, during the next enroll some other enrolled face will be overriten.
