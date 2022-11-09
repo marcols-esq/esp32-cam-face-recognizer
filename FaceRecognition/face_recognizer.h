@@ -26,6 +26,7 @@
 #include "Arduino.h"
 #include "fd_forward.h"
 #include "fr_forward.h"
+#include "fr_flash.h"
 #include "image_util.h"
 
 #include "camera_handler.h"
@@ -39,7 +40,8 @@ public:
   const int8_t recognize();
   const int8_t enrollFace();
   void enableFlashlight();
-  
+  void disableFlashlight();
+  const uint8_t deleteFace();
 
 private:
   CameraHandler m_camera;

@@ -28,35 +28,48 @@
 #include "fd_forward.h"
 #include "fr_forward.h"
 
-static const uint8_t recognizer_MaxNumberOfFaces  = 7;
-static const uint8_t recognizer_EnrollmentSamples = 5;
-static const uint8_t recognizer_EnrollTimeToLeave = 20;
-static const uint8_t recognizer_FaceWidth         = FACE_WIDTH;
-static const uint8_t recognizer_FaceHeight        = FACE_HEIGHT;
+static constexpr uint8_t recognizer_MaxNumberOfFaces  = 7;
+static constexpr uint8_t recognizer_EnrollmentSamples = 5;
+static constexpr uint8_t recognizer_EnrollTimeToLeave = 20;
+static constexpr uint8_t recognizer_FaceWidth         = FACE_WIDTH;
+static constexpr uint8_t recognizer_FaceHeight        = FACE_HEIGHT;
 
 
-static const uint8_t pin_PWDN   = 32;
-static const int8_t  pin_RST    = -1;
-static const uint8_t pin_XCLK   = 0;
-static const uint8_t pin_SIOD   = 26;
-static const uint8_t pin_SIOC   = 27;
-static const uint8_t pin_Y9     = 35;
-static const uint8_t pin_Y8     = 34;
-static const uint8_t pin_Y7     = 39;
-static const uint8_t pin_Y6     = 36;
-static const uint8_t pin_Y5     = 21;
-static const uint8_t pin_Y4     = 19;
-static const uint8_t pin_Y3     = 18;
-static const uint8_t pin_Y2     = 5;
-static const uint8_t pin_VSYNC  = 25;
-static const uint8_t pin_HREF   = 23;
-static const uint8_t pin_PCLK   = 22;
+static constexpr uint8_t pin_PWDN   = 32;
+static constexpr int8_t  pin_RST    = -1;
+static constexpr uint8_t pin_XCLK   = 0;
+static constexpr uint8_t pin_SIOD   = 26;
+static constexpr uint8_t pin_SIOC   = 27;
+static constexpr uint8_t pin_Y9     = 35;
+static constexpr uint8_t pin_Y8     = 34;
+static constexpr uint8_t pin_Y7     = 39;
+static constexpr uint8_t pin_Y6     = 36;
+static constexpr uint8_t pin_Y5     = 21;
+static constexpr uint8_t pin_Y4     = 19;
+static constexpr uint8_t pin_Y3     = 18;
+static constexpr uint8_t pin_Y2     = 5;
+static constexpr uint8_t pin_VSYNC  = 25;
+static constexpr uint8_t pin_HREF   = 23;
+static constexpr uint8_t pin_PCLK   = 22;
 
 
 static const ledc_channel_t camera_LedcChannel  = LEDC_CHANNEL_0;
 static const ledc_timer_t camera_LedcTimer      = LEDC_TIMER_0;
-static const uint64_t camera_XclkFrequency      = 20000000;
+static constexpr uint64_t camera_XclkFrequency  = 20000000;
 static const pixformat_t camera_PixelFormat     = PIXFORMAT_JPEG;
-static const uint8_t camera_Quality             = 10;
-static const uint8_t camera_FbCount             = 2;
+static constexpr uint8_t camera_Quality         = 10;
+static constexpr uint8_t camera_FbCount         = 2;
 static const framesize_t camera_FrameSize       = FRAMESIZE_HQVGA;
+
+static constexpr uint8_t wifi_MaxSsidLength     = 32;
+static constexpr uint8_t wifi_MaxPasswordLength = 64;
+
+static constexpr uint8_t mqtt_MaxMqttHostLength       = 32;
+static constexpr uint8_t mqtt_MaxMqttPasswordLength   = 64;
+static constexpr uint8_t mqtt_MaxNumberOfTopics       = 5;
+static constexpr uint8_t mqtt_MaxPortLength           = 5;
+static const std::string mqtt_ServerUrl               = "192.168.0.74";
+static constexpr uint16_t mqtt_ServerPort             = 1883;
+static const std::string mqtt_Username                = "ESP Face recognizer";
+static const std::string mqtt_RecognitionControlTopic = "recognition_control";
+static const std::string mqtt_RecognitionResultTopic  = "recognition_result";
