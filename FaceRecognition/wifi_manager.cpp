@@ -1,4 +1,5 @@
 #include <chrono>
+#include "config.h"
 #include <EEPROM.h>
 
 #include "wifi_manager.h"
@@ -9,24 +10,25 @@ using namespace std;
 WifiManager::WifiManager()
 : m_isSetupServerEnabled(false)
 {
-  EEPROM.begin(96);
+  EEPROM.begin(wifi_MaxSsidLength + wifi_MaxPasswordLength + mqtt_MaxMqttHostLength + mqtt_MaxMqttPasswordLength + mqtt_MaxPortLength);
 
-  m_destinationSsid.reserve(MaxSsidLength);
-  m_destinationPassword.reserve(MaxPasswordLength);
+  m_destinationSsid.reserve(wifi_MaxSsidLength);
+  m_destinationPassword.reserve(wifi_MaxPasswordLength);
   
-  for(int i = 0; i < MaxSsidLength; i++) {
-    m_destinationSsid[i] = EEPROM.read(i);
+  for(int i = 0; i < wifi_MaxSsidLength; i++) {
+    m_destinationSsid += EEPROM.read(i);
+//    Serial.println(m_destinationSsid[i]);
     if (m_destinationSsid[i] == 0) {
       break;
     }
   }
 
-  for(int i = 0; i < MaxPasswordLength; i++) {
-    m_destinationPassword[i] = EEPROM.read(i + MaxSsidLength);
+  for(int i = 0; i < wifi_MaxPasswordLength; i++) {
+    m_destinationPassword += EEPROM.read(i + wifi_MaxSsidLength);
+//    Serial.println(m_destinationPassword[i]);
     if (m_destinationPassword[i] == 0) {
       break;
     }
-//    Serial.printf("%d %c\n", i+MaxSsidLength, EEPROM.read(i + MaxSsidLength));
   }
 }
 
@@ -36,13 +38,21 @@ void WifiManager::setDestinationConnectionParameters(const string ssid, const st
   m_destinationPassword = password;
 }
 
-bool WifiManager::connectToDestination()
+bool WifiManager::connectToDestination(const std::string ssid, const std::string password)
 {
-  Serial.printf("WifiManager: Trying to connect to %s\n", m_destinationSsid.c_str());
-  milliseconds connectionTimeout {5000};
+  milliseconds connectionTimeout {10000};
   milliseconds waitBetweenAttempts {250};
-
-  WiFi.begin(m_destinationSsid.c_str(), m_destinationPassword.c_str());
+  // if arguments are default
+//  Serial.println(ssid.empty());
+//  Serial.println(ssid.length());
+//  Serial.println(m_destinationSsid.c_str());
+  if (ssid.empty()) {
+    Serial.printf("WifiManager: Trying to connect to %s\n", m_destinationSsid.c_str());
+    WiFi.begin(m_destinationSsid.c_str(), m_destinationPassword.c_str());
+  } else {
+    Serial.printf("WifiManager: Trying to connect to %s\n", ssid.c_str());
+    WiFi.begin(ssid.c_str(), password.c_str());
+  }
 
   while (WiFi.status() != WL_CONNECTED) {
     delay(waitBetweenAttempts.count());
@@ -53,6 +63,7 @@ bool WifiManager::connectToDestination()
       return false;
     }
   }
+  
   Serial.print("WifiManager: Connected to destination, ESP camera IP address: ");
   Serial.println(WiFi.localIP());
   return true;
@@ -97,10 +108,14 @@ void WifiManager::setupWebPage()
     m_webPage += "p    {font-family: sans-serif; text-align: center;}";
     m_webPage += "</style></head>";
     m_webPage += "<h1>ESP-CAM Face recognizer setup page</h1><br>";
-    m_webPage += "<form method='post' action='setting'><label><p>Server SSID:     </label><input name='ssid' length=32></p>";
-    m_webPage += "<p>Server password: <input name='pass' length=64 input type='password'> </p>";
-    m_webPage += "<br><p>ESP camera IP address: <input name='oct1' length=3 input type='number'>.<input name='oct2' length=3 input type='number'>.";
-    m_webPage += "<input name='oct3' length=3 input type='number'>.<input name='oct4' length=3 input type='number'></p>";
+    m_webPage += "<form method='post' action='setting'><label><p>Server SSID:     </label><input name='ssid' length=" + String(wifi_MaxSsidLength) + "></p>";
+    m_webPage += "<p>Server password: <input name='pass' length=" + String(wifi_MaxPasswordLength) + "input type='password'> </p>";
+    m_webPage += "<br><p>ESP camera IP address: <input name='oct1' length=3 input type='number' style='width: 50px'>.";
+    m_webPage += "<input name='oct2' length=3 input type='number' style='width: 50px'>.<input name='oct3' length=3 input type='number' style='width: 50px'>.";
+    m_webPage += "<input name='oct4' length=3 input type='number' style='width: 50px'></p>";
+    m_webPage += "<p>MQTT Server username: " + String(mqtt_Username.c_str()) + "</p>";
+    m_webPage += "<p>MQTT Server host address: <input name='mqtt_host' length=" + String(mqtt_MaxMqttHostLength) + "> Port: <input name='mqtt_port' length=5 style='width: 70px'></p>";
+    m_webPage += "<p>MQTT Server password: <input name='mqtt_pass' length=" + String(mqtt_MaxMqttPasswordLength) + " input type='password'></p>";
     m_webPage += "<p><button>Save</button></p></form>";
     m_webPage += "</html>";
     m_webServer.sendHeader("Connection", "close");
@@ -119,15 +134,22 @@ void WifiManager::setupWebPage()
     
     string newSsid(m_webServer.arg("ssid").c_str());
     string newPass(m_webServer.arg("pass").c_str());
+    string newMqttHost(m_webServer.arg("mqtt_host").c_str());
+    string newMqttPass(m_webServer.arg("mqtt_pass").c_str());
+    string newMqttPort(m_webServer.arg("mqtt_port").c_str());
 
     if (m_webServer.arg("oct1").toInt() > 255 || m_webServer.arg("oct2").toInt() > 255
         || m_webServer.arg("oct3").toInt() > 255 || m_webServer.arg("oct4").toInt() > 255) {
-      m_webPage += "<form method='post' action='setting'><label><p>Server SSID:     </label><input name='ssid' length=32></p>";
-      m_webPage += "<p>Server password: <input name='pass' length=64 input type='password'> </p>";
-      m_webPage += "<br><p>ESP camera IP address: <input name='oct1' length=3 input type='number'>.<input name='oct2' length=3 input type='number'>.";
-      m_webPage += "<input name='oct3' length=3 input type='number'>.<input name='oct4' length=3 input type='number'></p>";
+      m_webPage += "<form method='post' action='setting'><label><p>Server SSID:     </label><input name='ssid' length=" + String(wifi_MaxSsidLength) + "></p>";
+      m_webPage += "<p>Server password: <input name='pass' length=" + String(wifi_MaxPasswordLength) + "input type='password'> </p>";
+      m_webPage += "<br><p>ESP camera IP address: <input name='oct1' length=3 input type='number' style='width: 50px'>.";
+      m_webPage += "<input name='oct2' length=3 input type='number' style='width: 50px'>.<input name='oct3' length=3 input type='number' style='width: 50px'>.";
+      m_webPage += "<input name='oct4' length=3 input type='number' style='width: 50px'></p>";
+      m_webPage += "<p>MQTT Server username: " + String(mqtt_Username.c_str()) + "</p>";
+      m_webPage += "<p>MQTT Server host address: <input name='mqtt_host' length=" + String(mqtt_MaxMqttHostLength) + "> Port: <input name='mqtt_port' length=5 style='width: 70px'></p>";
+      m_webPage += "<p>MQTT Server password: <input name='mqtt_pass' length=" + String(mqtt_MaxMqttPasswordLength) + " input type='password'></p>";
       m_webPage += "<p><button>Save</button></p></form>";
-      m_webPage += "<br><p>Invalid IP address, retry</p>";
+      m_webPage += "<br><p>Invalid ESP camera IP address, retry</p>";
       m_webServer.sendHeader("Access-Control-Allow-Credentials", "true");
       m_webServer.send(200, "text/html", m_webPage);
       return;
@@ -135,32 +157,39 @@ void WifiManager::setupWebPage()
     
     IPAddress newIp(m_webServer.arg("oct1").toInt(), m_webServer.arg("oct2").toInt(), m_webServer.arg("oct3").toInt(), m_webServer.arg("oct4").toInt());
 
-    if (newSsid.length() == 0 || newPass.length() == 0) {
-      m_webPage += "<form method='post' action='setting'><label><p>Server SSID:     </label><input name='ssid' length=32></p>";
-      m_webPage += "<p>Server password: <input name='pass' length=64 input type='password'> </p>";
-      m_webPage += "<br><p>ESP camera IP address: <input name='oct1' length=3 input type='number'>.<input name='oct2' length=3 input type='number'>.";
-      m_webPage += "<input name='oct3' length=3 input type='number'>.<input name='oct4' length=3 input type='number'></p>";
+    if (newSsid.length() == 0 || newPass.length() == 0 || newMqttHost.length() == 0) {
+      m_webPage += "<form method='post' action='setting'><label><p>Server SSID:     </label><input name='ssid' length=" + String(wifi_MaxSsidLength) + "></p>";
+      m_webPage += "<p>Server password: <input name='pass' length=" + String(wifi_MaxPasswordLength) + "input type='password'> </p>";
+      m_webPage += "<br><p>ESP camera IP address: <input name='oct1' length=3 input type='number' style='width: 50px'>.";
+      m_webPage += "<input name='oct2' length=3 input type='number' style='width: 50px'>.<input name='oct3' length=3 input type='number' style='width: 50px'>.";
+      m_webPage += "<input name='oct4' length=3 input type='number' style='width: 50px'></p>";
+      m_webPage += "<p>MQTT Server username: " + String(mqtt_Username.c_str()) + "</p>";
+      m_webPage += "<p>MQTT Server host address: <input name='mqtt_host' length=" + String(mqtt_MaxMqttHostLength) + "> Port: <input name='mqtt_port' length=5 style='width: 70px'></p>";
+      m_webPage += "<p>MQTT Server password: <input name='mqtt_pass' length=" + String(mqtt_MaxMqttPasswordLength) + " input type='password'></p>";
       m_webPage += "<p><button>Save</button></p></form>";
-      m_webPage += "<br><p>Empty credentials, retry.</p>";
+      m_webPage += "<br><p>Empty server credentials, retry.</p>";
       m_webServer.sendHeader("Access-Control-Allow-Credentials", "true");
       m_webServer.send(200, "text/html", m_webPage);
       return;
     }
 
-    setDestinationConnectionParameters(newSsid, newPass);
-    if (connectToDestination()) {
-      updateCredentials(newSsid, newPass);
+    if (connectToDestination(newSsid, newPass)) {
+      updateCredentials(newSsid, newPass, newMqttHost, newMqttPass, newMqttPort);
       WiFi.config(newIp, WiFi.gatewayIP(), WiFi.subnetMask());
-      m_webPage += "<p>Credentials saved. Rebooting</p></html>";
+      m_webPage += "<p>Credentials saved. Rebooting...</p></html>";
       m_webServer.sendHeader("Access-Control-Allow-Credentials", "true");
       m_webServer.send(200, "text/html", m_webPage);
       delay(100);
       ESP.restart();
     } else {
-      m_webPage += "<form method='post' action='setting'><label><p>Server SSID:     </label><input name='ssid' length=32></p>";
-      m_webPage += "<p>Server password: <input name='pass' length=64 input type='password'> </p>";
-      m_webPage += "<br><p>ESP camera IP address: <input name='oct1' length=3 input type='number'>.<input name='oct2' length=3 input type='number'>.";
-      m_webPage += "<input name='oct3' length=3 input type='number'>.<input name='oct4' length=3 input type='number'></p>";
+      m_webPage += "<form method='post' action='setting'><label><p>Server SSID:     </label><input name='ssid' length=" + String(wifi_MaxSsidLength) + "></p>";
+      m_webPage += "<p>Server password: <input name='pass' length=" + String(wifi_MaxPasswordLength) + "input type='password'> </p>";
+      m_webPage += "<br><p>ESP camera IP address: <input name='oct1' length=3 input type='number' style='width: 50px'>.";
+      m_webPage += "<input name='oct2' length=3 input type='number' style='width: 50px'>.<input name='oct3' length=3 input type='number' style='width: 50px'>.";
+      m_webPage += "<input name='oct4' length=3 input type='number' style='width: 50px'></p>";
+      m_webPage += "<p>MQTT Server username: " + String(mqtt_Username.c_str()) + "</p>";
+      m_webPage += "<p>MQTT Server host address: <input name='mqtt_host' length=" + String(mqtt_MaxMqttHostLength) + "> Port: <input name='mqtt_port' length=5 style='width: 70px'></p>";
+      m_webPage += "<p>MQTT Server password: <input name='mqtt_pass' length=" + String(mqtt_MaxMqttPasswordLength) + " input type='password'></p>";
       m_webPage += "<p><button>Save</button></p></form>";
       m_webPage += "<br><p>Could not connect to the server with following credentials, retry.</p>";
     }
@@ -178,20 +207,61 @@ static void writeToEeprom(uint8_t address, uint8_t data)
   }
 }
 
-void WifiManager::updateCredentials(const string newSsid, const string newPass)
+void WifiManager::updateCredentials(const string newSsid, const string newPass, const string newMqttHost, const string newMqttPass, const string newMqttPort)
 {
-  if (m_destinationSsid.length() > newSsid.length()) {
-    // clear old ssid characters
-    for (int i = (newSsid.length() - 1); i < m_destinationSsid.length(); i++) {
-      writeToEeprom(i, 0);
+  // read old MQTT credentials
+  constexpr uint8_t portLength = 5;
+  string mqttHost, mqttPass, mqttPort;
+  mqttHost.reserve(mqtt_MaxMqttHostLength);
+  mqttPass.reserve(mqtt_MaxMqttPasswordLength);
+  mqttPort.reserve(portLength);
+  for(int i = 0; i < mqtt_MaxMqttHostLength; i++) {
+    mqttHost[i] = EEPROM.read(i + wifi_MaxSsidLength + wifi_MaxPasswordLength);
+    if (mqttHost[i] == 0) {
+      break;
     }
   }
 
-  if (m_destinationPassword.length() > newPass.length()) {
-    // clear old password characters
-    for (int i = (MaxSsidLength + newPass.length() - 1); i < (MaxSsidLength + m_destinationPassword.length()); i++) {
-      writeToEeprom(i, 0);
+  for(int i = 0; i < mqtt_MaxMqttPasswordLength; i++) {
+    mqttPass[i] = EEPROM.read(i + wifi_MaxSsidLength + wifi_MaxPasswordLength + mqtt_MaxMqttHostLength);
+    if (mqttPass[i] == 0) {
+      break;
     }
+  }
+
+  for(int i = 0; i < portLength; i++) {
+    mqttPort[i] = EEPROM.read(i + wifi_MaxSsidLength + wifi_MaxPasswordLength + mqtt_MaxMqttHostLength + mqtt_MaxMqttPasswordLength);
+    if (mqttPort[i] == 0) {
+      break;
+    }
+  }
+  
+
+  // clear old SSID characters
+  for (int i = 0; i < wifi_MaxSsidLength; i++) {
+    writeToEeprom(i, 0);
+  }
+
+  // clear old password characters
+  for (int i = 0; i < wifi_MaxPasswordLength; i++) {
+    writeToEeprom(wifi_MaxSsidLength + i, 0);
+  }
+
+  // clear old MQTT host characters
+  for (int i = 0; i < mqtt_MaxMqttHostLength; i++) {
+    writeToEeprom(wifi_MaxSsidLength + wifi_MaxPasswordLength + i, 0);
+  }
+
+  // clear old MQTT password characters, if needed
+  for (int i = 0; i < mqtt_MaxMqttPasswordLength; i++) {
+    writeToEeprom(wifi_MaxSsidLength + wifi_MaxPasswordLength + 
+                  mqtt_MaxMqttHostLength + i, 0);
+  }
+
+  // clear old MQTT port characters
+  for (int i = 0; i < mqtt_MaxPortLength; i++) {
+    writeToEeprom(wifi_MaxSsidLength + wifi_MaxPasswordLength + 
+                  mqtt_MaxMqttHostLength + i, 0);
   }
 
   // update new credentials
@@ -200,7 +270,19 @@ void WifiManager::updateCredentials(const string newSsid, const string newPass)
   }
 
   for (int i = 0; i < newPass.length(); i++) {
-    writeToEeprom(i + MaxSsidLength, newPass[i]);
+    writeToEeprom(i + wifi_MaxSsidLength, newPass[i]);
+  }
+
+  for (int i = 0; i < newMqttHost.length(); i++) {
+    writeToEeprom(i + wifi_MaxSsidLength + wifi_MaxPasswordLength, newMqttHost[i]);
+  }
+
+  for (int i = 0; i < newMqttPass.length(); i++) {
+    writeToEeprom(i + wifi_MaxSsidLength + wifi_MaxPasswordLength + mqtt_MaxMqttHostLength, newMqttPass[i]);
+  }
+
+  for (int i = 0; i < newMqttPort.length(); i++) {
+    writeToEeprom(i + wifi_MaxSsidLength + wifi_MaxPasswordLength + mqtt_MaxMqttHostLength + mqtt_MaxMqttPasswordLength, newMqttPort[i]);
   }
 
   EEPROM.commit();

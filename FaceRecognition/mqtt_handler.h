@@ -23,32 +23,39 @@
 #pragma once
 
 #include "Arduino.h"
-#include <WiFi.h>
-#include <WiFiAP.h>
+#include <array>
+#include "config.h"
+#include "mqtt_client.h"
 #include <string>
-#include <WebServer.h>
 
-class WifiManager
+struct MqttMessage
+{
+  std::string topic;
+  std::string msg;
+};
+
+class MqttHandler
 {
 public:
-  WifiManager();
-  bool connectToDestination(const std::string ssid = std::string(""), const std::string password = std::string(""));
-  void runSetupServer();
+  MqttHandler();
+  bool start();
+  bool subscribeToTopic(std::string topic, uint8_t qosLevel = 0);
+  bool unsubscribeFromTopic(std::string topic);
+  bool publishMessage(std::string topic, std::string msg, uint8_t qosLevel = 0);
+  std::string getLatestMessage(std::string topic);
+  static void updateMessage(const char* topic, uint32_t topicLength, const char* msg, uint32_t msgLength);
+  static void attemptReconnection();
+  void stopClient();
 
 private:
-  void setDestinationConnectionParameters(const std::string ssid, const std::string password);
-  void enableSetupServer();
-  bool disableSetupServer();
-  void setupWebPage();
-  void updateCredentials(const std::string newSsid, const std::string newPass, const std::string newMqttHost, const std::string newMqttPass, const std::string newMqttPort);
+  static bool getTopicIndex(std::string topic, uint8_t* resultDestination = nullptr);
+  bool addTopic(std::string topic);
+  void removeTopic(uint8_t topicIndex);
   
-  const std::string SetupSsid = "ESP Face recognizer";
-  const std::string SetupPassword = "admin";
-  
-  std::string m_destinationSsid;
-  std::string m_destinationPassword;
-  WiFiClient m_accessPointClient;
-  WebServer m_webServer {80};
-  String m_webPage;
-  bool m_isSetupServerEnabled;
+  esp_mqtt_client_config_t m_mqttConfig;
+  static esp_mqtt_client_handle_t m_mqttClient;
+  static std::array<MqttMessage, mqtt_MaxNumberOfTopics> m_subscribedTopics;
+  std::string m_mqttHost;
+  std::string m_mqttPass;
+  std::string m_mqttPort;
 };
