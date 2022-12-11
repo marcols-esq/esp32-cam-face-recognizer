@@ -34,13 +34,21 @@ public:
   WifiManager();
   bool connectToDestination(const std::string ssid = std::string(""), const std::string password = std::string(""));
   void runSetupServer();
+  void disconnect();
 
 private:
   void setDestinationConnectionParameters(const std::string ssid, const std::string password);
   void enableSetupServer();
   bool disableSetupServer();
   void setupWebPage();
-  void updateCredentials(const std::string newSsid, const std::string newPass, const std::string newMqttHost, const std::string newMqttPass, const std::string newMqttPort);
+  void updateCredentials(const std::string newSsid, 
+                         const std::string newPass, 
+                         const std::string newMqttHost, 
+                         const std::string newMqttUsername,
+                         const std::string newMqttPass, 
+                         const std::string newMqttPort, 
+                         const std::string newMqttControlTopic, 
+                         const std::string newMqttResultTopic);
   
   const std::string SetupSsid = "ESP Face recognizer";
   const std::string SetupPassword = "admin";

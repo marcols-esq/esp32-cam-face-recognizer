@@ -24,6 +24,7 @@
 #pragma once
 
 #include "Arduino.h"
+#include <chrono>
 #include "esp_camera.h"
 #include "fd_forward.h"
 #include "fr_forward.h"
@@ -61,15 +62,19 @@ static constexpr uint8_t camera_Quality         = 10;
 static constexpr uint8_t camera_FbCount         = 2;
 static const framesize_t camera_FrameSize       = FRAMESIZE_HQVGA;
 
+
 static constexpr uint8_t wifi_MaxSsidLength     = 32;
 static constexpr uint8_t wifi_MaxPasswordLength = 64;
 
-static constexpr uint8_t mqtt_MaxMqttHostLength       = 32;
-static constexpr uint8_t mqtt_MaxMqttPasswordLength   = 64;
-static constexpr uint8_t mqtt_MaxNumberOfTopics       = 5;
-static constexpr uint8_t mqtt_MaxPortLength           = 5;
-static const std::string mqtt_ServerUrl               = "192.168.0.74";
-static constexpr uint16_t mqtt_ServerPort             = 1883;
-static const std::string mqtt_Username                = "ESP Face recognizer";
-static const std::string mqtt_RecognitionControlTopic = "recognition_control";
-static const std::string mqtt_RecognitionResultTopic  = "recognition_result";
+
+static constexpr uint8_t mqtt_MaxMqttHostLength                    = 32;
+static constexpr uint8_t mqtt_MaxMqttUsernameLength                = 32;
+static constexpr uint8_t mqtt_MaxMqttPasswordLength                = 64;
+static constexpr uint8_t mqtt_MaxPortLength                        = 5;
+static constexpr uint8_t mqtt_MaxMqttRecognitionControlTopicLength = 32;
+static constexpr uint8_t mqtt_MaxMqttRecognitionResultTopicLength  = 32;
+static constexpr uint8_t mqtt_MaxNumberOfTopics                    = 5;
+static const std::string mqtt_DeviceUsername                       = "ESP Face recognizer";
+static constexpr uint8_t mqtt_ConnectionRetriesBeforeTimeout       = 6;
+//static const std::string mqtt_RecognitionControlTopic = "recognition_control";
+//static const std::string mqtt_RecognitionResultTopic  = "recognition_result";

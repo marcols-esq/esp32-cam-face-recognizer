@@ -23,6 +23,7 @@
 
 #include "camera_index.h"
 #include <chrono>
+#include <EEPROM.h>
 #include "esp_camera.h"
 #include "fd_forward.h"
 #include "fr_forward.h"
@@ -35,12 +36,14 @@
 using namespace std;
 using namespace std::chrono;
 
-void setup() {
+string GetRecognitionControlTopic();
+string GetRecognitionResultTopic();
+
+void setup() {  
   constexpr uint32_t BaudRate = 115200;
   Serial.begin(BaudRate);
   
   FaceRecognizer recognizer;
-  pinMode(12, INPUT_PULLUP);
   
   WifiManager wifiManager;
   if (!wifiManager.connectToDestination()) {
@@ -58,30 +61,39 @@ void setup() {
   
   while(mqttHandler.start() != true);
   delay(1000);  // wait for MQTT server to ackgnowledge connection
-  while (!mqttHandler.subscribeToTopic(mqtt_RecognitionControlTopic)) {
+  uint8_t retries = mqtt_ConnectionRetriesBeforeTimeout;
+  while (!mqttHandler.subscribeToTopic(GetRecognitionControlTopic())) {
     Serial.println("Could not connect to MQTT server, retrying in 5 seconds");
+    if (!retries) {
+      mqttHandler.stopClient();
+      wifiManager.disconnect();
+      wifiManager.runSetupServer();
+    }
+    
+    retries--;
     delay(5000);
   }
   
-  mqttHandler.subscribeToTopic(mqtt_RecognitionResultTopic);
+  mqttHandler.subscribeToTopic(GetRecognitionResultTopic());
   
   while (1) {
-    if (mqttHandler.getLatestMessage(mqtt_RecognitionControlTopic) == "run") {
+    if (mqttHandler.getLatestMessage(GetRecognitionControlTopic()) == "run") {
       recognizer.enableFlashlight();  
-      if (mqttHandler.getLatestMessage(mqtt_RecognitionResultTopic) == "enroll") {
+      if (mqttHandler.getLatestMessage(GetRecognitionResultTopic()) == "enroll") {
         enrollmentCycles = recognizer_EnrollmentSamples;
-      } else if (mqttHandler.getLatestMessage(mqtt_RecognitionResultTopic) == "delete") {
+      } else if (mqttHandler.getLatestMessage(GetRecognitionResultTopic()) == "delete") {
         recognizer.deleteFace();
       } 
            
       detected = recognizer.detect(); 
       if (detected) {
         Serial.println("Face detected.");
+        // if the device is in enrolling process
         if (enrollmentCycles > 0) {
           id = recognizer.enrollFace();
           enrollmentCycles--;
           sprintf(recognitionResultMsgBuffer, "Enrolling new face, samples left: %d", enrollmentCycles);
-          mqttHandler.publishMessage(mqtt_RecognitionResultTopic, string(recognitionResultMsgBuffer));
+          mqttHandler.publishMessage(GetRecognitionResultTopic(), string(recognitionResultMsgBuffer));
           continue;
         }
               
@@ -97,10 +109,10 @@ void setup() {
           sprintf(recognitionResultMsgBuffer, "Detected face, not recognized");
         }
         
-        mqttHandler.publishMessage(mqtt_RecognitionResultTopic, string(recognitionResultMsgBuffer));
+        mqttHandler.publishMessage(GetRecognitionResultTopic(), string(recognitionResultMsgBuffer));
       }
       
-    } else if (mqttHandler.getLatestMessage(mqtt_RecognitionControlTopic) == "stop") {
+    } else if (mqttHandler.getLatestMessage(GetRecognitionControlTopic()) == "stop") {
       recognizer.disableFlashlight();
       if (milliseconds(millis()) - time > heartbeatCycle) {
         Serial.printf("Face recognition stopped. Heartbeat: %d\n", heartbeat++);
@@ -108,6 +120,7 @@ void setup() {
       }
     } else {
       if (milliseconds(millis()) - time > heartbeatCycle) {
+        recognizer.disableFlashlight();
         Serial.printf("Invalid/no message received from MQTT server. Heartbeat: %d\n", heartbeat++);
         time = milliseconds(millis());
       }
@@ -118,4 +131,45 @@ void setup() {
 void loop() {
   // put your main code here, to run repeatedly:
 
+}
+
+string GetRecognitionControlTopic() {
+  static string recognitionControlTopic;
+
+  if (recognitionControlTopic.empty()) {
+    uint32_t readingOffset = wifi_MaxSsidLength + wifi_MaxPasswordLength +
+                             mqtt_MaxMqttHostLength + mqtt_MaxMqttUsernameLength +
+                             mqtt_MaxMqttPasswordLength + mqtt_MaxPortLength;
+  
+    for(int i = 0; i < mqtt_MaxMqttRecognitionControlTopicLength; i++) {
+      recognitionControlTopic += EEPROM.read(i + readingOffset);
+      if (recognitionControlTopic[i] == 0) {
+        recognitionControlTopic.pop_back();
+        break;
+      }
+    }
+  }
+  
+  return recognitionControlTopic;
+}
+
+string GetRecognitionResultTopic() {
+  static string recognitionResultTopic;
+
+  if (recognitionResultTopic.empty()) {
+    uint32_t readingOffset = wifi_MaxSsidLength + wifi_MaxPasswordLength +
+                             mqtt_MaxMqttHostLength + mqtt_MaxMqttUsernameLength +
+                             mqtt_MaxMqttPasswordLength + mqtt_MaxPortLength +
+                             mqtt_MaxMqttRecognitionControlTopicLength;
+                             
+    for(int i = 0; i < mqtt_MaxMqttRecognitionResultTopicLength; i++) {
+      recognitionResultTopic += EEPROM.read(i + readingOffset);
+      if (recognitionResultTopic[i] == 0) {
+        recognitionResultTopic.pop_back();
+        break;
+      }
+    }
+  }
+
+  return recognitionResultTopic;
 }
