@@ -2,6 +2,7 @@
 #include <EEPROM.h>
 
 using namespace std;
+using namespace std::chrono;
 
 // initialization of static variables
 esp_mqtt_client_handle_t MqttHandler::m_mqttClient = NULL;
@@ -29,10 +30,10 @@ static esp_err_t handleEvent(esp_mqtt_event_handle_t event)
 
 // used for trimming strings returned by MQTT handler
 void trimString(std::string &s) {
-    s.erase(std::find_if(s.rbegin(), s.rend(), [](unsigned char ch) {
-        return !std::isspace(ch);
-    }).base(), s.end());
-    s.shrink_to_fit();
+  s.erase(std::find_if(s.rbegin(), s.rend(), [](unsigned char ch) {
+      return !std::isspace(ch);
+  }).base(), s.end());
+  s.shrink_to_fit();
 }
 
 MqttHandler::MqttHandler()
@@ -40,33 +41,45 @@ MqttHandler::MqttHandler()
   m_mqttHost.reserve(mqtt_MaxMqttHostLength);
   m_mqttPass.reserve(mqtt_MaxMqttPasswordLength);
   m_mqttPort.reserve(mqtt_MaxPortLength);
+
+  uint32_t readingOffset = wifi_MaxSsidLength + wifi_MaxPasswordLength;
   
   for(int i = 0; i < mqtt_MaxMqttHostLength; i++) {
-    m_mqttHost += EEPROM.read(i + wifi_MaxSsidLength + wifi_MaxPasswordLength);
+    m_mqttHost += EEPROM.read(i + readingOffset);
     if (m_mqttHost[i] == 0) {
       break;
     }
   }
+  readingOffset += mqtt_MaxMqttHostLength;
+
+  for(int i = 0; i < mqtt_MaxMqttUsernameLength; i++) {
+    m_mqttUsername += EEPROM.read(i + readingOffset);
+    if (m_mqttUsername[i] == 0) {
+      break;
+    }
+  }
+  readingOffset += mqtt_MaxMqttUsernameLength;
 
   for(int i = 0; i < mqtt_MaxMqttPasswordLength; i++) {
-    m_mqttPass += EEPROM.read(i + wifi_MaxSsidLength + wifi_MaxPasswordLength + mqtt_MaxMqttHostLength);
+    m_mqttPass += EEPROM.read(i + readingOffset);
     if (m_mqttPass[i] == 0) {
       break;
     }
   }
+  readingOffset += mqtt_MaxMqttPasswordLength;
 
   for(int i = 0; i < mqtt_MaxPortLength; i++) {
-    m_mqttPort += EEPROM.read(i + wifi_MaxSsidLength + wifi_MaxPasswordLength + mqtt_MaxMqttHostLength + mqtt_MaxMqttPasswordLength);
+    m_mqttPort += EEPROM.read(i + readingOffset);
     if (m_mqttPort[i] == 0) {
       break;
     }
   }
- 
+
   m_mqttConfig = {0};
   m_mqttConfig.host = m_mqttHost.c_str();
   m_mqttConfig.port = atoi(m_mqttPort.c_str());
   m_mqttConfig.event_handle = handleEvent;
-  m_mqttConfig.username = mqtt_Username.c_str();
+  m_mqttConfig.username = m_mqttUsername.c_str();
   m_mqttConfig.password = m_mqttPass.c_str();
   m_mqttConfig.transport = MQTT_TRANSPORT_OVER_TCP;
 
@@ -80,7 +93,7 @@ MqttHandler::MqttHandler()
 
 bool MqttHandler::start()
 {
-  Serial.printf("MqttHandler: Connecting to MQTT server using: %s:%d\n", m_mqttHost.c_str(), atoi(m_mqttPort.c_str()));
+  Serial.printf("MqttHandler: Connecting to MQTT server: %s:%d with username: %s\n", m_mqttHost.c_str(), atoi(m_mqttPort.c_str()), m_mqttUsername.c_str());
   return esp_mqtt_client_start(m_mqttClient) == ESP_OK;
 }
 
@@ -182,13 +195,11 @@ void MqttHandler::updateMessage(const char* topic, uint32_t topicLength, const c
 void MqttHandler::attemptReconnection()
 {
   Serial.println("MqttHandler: Attempting to reconnect to MQTT server");
-  auto status = esp_mqtt_client_reconnect(m_mqttClient);
-  if (status == ESP_OK) {
-    Serial.println("MqttHandler: Reconnected to MQTT server");
-  }
+  esp_mqtt_client_reconnect(m_mqttClient);
 }
 
 void MqttHandler::stopClient()
 {
-  esp_mqtt_client_stop(m_mqttClient);
+  // In used version of mqtt_client.h, usage of this function causes a deadlock. Fun.
+  // esp_mqtt_client_stop(m_mqttClient);
 }

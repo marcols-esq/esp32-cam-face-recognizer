@@ -56,6 +56,7 @@ private:
   static esp_mqtt_client_handle_t m_mqttClient;
   static std::array<MqttMessage, mqtt_MaxNumberOfTopics> m_subscribedTopics;
   std::string m_mqttHost;
+  std::string m_mqttUsername;
   std::string m_mqttPass;
   std::string m_mqttPort;
 };

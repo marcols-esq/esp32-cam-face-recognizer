@@ -19,6 +19,7 @@ Prerequisites:
    - `Upload speed: 921600`
    - `Flash frequency: 80MHz`
    - `Flash mode: QIO`  
+
    Don't forget to assign proper COM port
 
 
@@ -29,6 +30,7 @@ Prerequisites:
 At first launch, device will setup WiFi access point, to which user should connect (password: `admin`).
 Next, using web browser, user should go to IP address that has been printed on UART (most likely 192.168.4.1).
 Then, user should fill the HTTP form with WiFi and MQTT credentials. The device will check if WiFi credentials were put in correctly.
+
 
 After checking WiFi credentials, the device will store them in EEPROM memory and it reset itself.
 Device should connect to specified WiFi and MQTT server (process can be observed on UART).
