@@ -75,6 +75,4 @@ static constexpr uint8_t mqtt_MaxMqttRecognitionControlTopicLength = 32;
 static constexpr uint8_t mqtt_MaxMqttRecognitionResultTopicLength  = 32;
 static constexpr uint8_t mqtt_MaxNumberOfTopics                    = 5;
 static const std::string mqtt_DeviceUsername                       = "ESP Face recognizer";
-static constexpr uint8_t mqtt_ConnectionRetriesBeforeTimeout       = 6;
-//static const std::string mqtt_RecognitionControlTopic = "recognition_control";
-//static const std::string mqtt_RecognitionResultTopic  = "recognition_result";
+static constexpr uint8_t mqtt_ConnectionRetriesBeforeTimeout       = 6;s

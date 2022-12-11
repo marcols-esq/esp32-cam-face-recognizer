@@ -18,7 +18,8 @@ Prerequisites:
    Other options I use:
    - `Upload speed: 921600`
    - `Flash frequency: 80MHz`
-   - `Flash mode: QIO`
+   - `Flash mode: QIO`  
+
    Don't forget to assign proper COM port
 
 
@@ -28,7 +29,8 @@ Prerequisites:
 
 At first launch, device will setup WiFi access point, to which user should connect (password: `admin`).
 Next, using web browser, user should go to IP address that has been printed on UART (most likely 192.168.4.1).
-Then, user should fill the form with WiFi and MQTT credentials. The device will check if WiFi credentials were put in correctly.
+Then, user should fill the HTTP form with WiFi and MQTT credentials. The device will check if WiFi credentials were put in correctly.
+
 
 After checking WiFi credentials, the device will store them in EEPROM memory and it reset itself.
 Device should connect to specified WiFi and MQTT server (process can be observed on UART).
@@ -37,9 +39,8 @@ If it fails, device will setup access point again.
 If required, some properties can be changed in `config.h` file.
 
 # Usage
-After connecting to MQTT server, device will subscribe to two topics: `recognition_control` and `recognition_result`.
-NOTE: Those are default topic names, they can be changed in `config.h`
+After connecting to MQTT server, device will subscribe to two topics specified in HTTP form (`recognition_control` and `recognition_result` by default).
 
 In `recognition_control` the facial detection and recognition process can be controlled. User can start/stop the process by posting `run`/`stop` in the topic.
-When the process is running, the device posts the results in `recognition_result` topic. To start enrolling detected face, `enroll` message has to be sent. To delete recognized face, a `delete` message should be posted.
-However, face deletion has a limitation (caused by implementation of Espressif face recognition library), that user should delete faces in reverse order of enrolling (delete newest enrolled face first). In other case, during the next enroll some other enrolled face will be overriten.
+When the process is running, the device posts the results in `recognition_result` topic. To start enrolling detected face, `enroll` message has to be sent. To delete last enrolled face, a `delete` message should be posted.  
+`delete` limitation is caused by implementation of Espressif face recognition library. User has to (for now) delete faces in reverse order of enrolling.
